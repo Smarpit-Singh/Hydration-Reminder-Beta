@@ -11,6 +11,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.android.hydrationreminderbeta.sync.ReminderTasks;
+import com.example.android.hydrationreminderbeta.sync.ReminderUtils;
 import com.example.android.hydrationreminderbeta.sync.WaterReminderIntentService;
 import com.example.android.hydrationreminderbeta.utilities.NotificationUtils;
 import com.example.android.hydrationreminderbeta.utilities.PreferenceUtilities;
@@ -36,6 +37,8 @@ public class MainActivity extends AppCompatActivity implements
 
         updateWaterCount();
         updateChargingReminderCount();
+
+        ReminderUtils.scheduleChargingReminder(this);
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
@@ -85,7 +88,4 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    public void testNotification(View view) {
-        NotificationUtils.remindUserBecauseCharging(getApplicationContext());
-    }
 }
