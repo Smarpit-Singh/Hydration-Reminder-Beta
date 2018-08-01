@@ -5,6 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.os.BatteryManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
@@ -31,12 +33,10 @@ public class MainActivity extends AppCompatActivity implements
     ChargingBroadcastReceiver mChargingReceiver;
     IntentFilter mChargingIntentFilter;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
 
         mWaterCountDisplay =  findViewById(R.id.tv_water_count);
         mChargingCountDisplay =  findViewById(R.id.tv_charging_reminder_count);
@@ -44,25 +44,50 @@ public class MainActivity extends AppCompatActivity implements
 
         updateWaterCount();
         updateChargingReminderCount();
-
         ReminderUtils.scheduleChargingReminder(this);
+
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
 
+
         mChargingIntentFilter = new IntentFilter();
         mChargingReceiver = new ChargingBroadcastReceiver();
-
         mChargingIntentFilter.addAction(Intent.ACTION_POWER_CONNECTED);
         mChargingIntentFilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+
+            BatteryManager batteryManager = (BatteryManager) getSystemService(BATTERY_SERVICE);
+            showCharging(batteryManager.isCharging());
+        } else {
+            IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            Intent currentBatteryStatusIntent = registerReceiver(null, ifilter);
+            int batteryStatus = currentBatteryStatusIntent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+            boolean isCharging = batteryStatus == BatteryManager.BATTERY_STATUS_CHARGING ||
+                    batteryStatus == BatteryManager.BATTERY_STATUS_FULL;
+            showCharging(isCharging);
+        }
+
+        registerReceiver(mChargingReceiver, mChargingIntentFilter);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(mChargingReceiver);
+    }
 
     private void updateWaterCount() {
         int waterCount = PreferenceUtilities.getWaterCount(this);
-        mWaterCountDisplay.setText(waterCount+"");
+        mWaterCountDisplay.setText(waterCount + "");
     }
-
 
     private void updateChargingReminderCount() {
         int chargingReminders = PreferenceUtilities.getChargingReminderCount(this);
@@ -83,6 +108,7 @@ public class MainActivity extends AppCompatActivity implements
         startService(incrementWaterCountIntent);
     }
 
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -101,37 +127,22 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        registerReceiver(mChargingReceiver, mChargingIntentFilter);
-    }
+    private void showCharging(boolean isCharging) {
+        if (isCharging) {
+            mChargingImageView.setImageResource(R.drawable.ic_power_pink_80px);
 
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterReceiver(mChargingReceiver);
+        } else {
+            mChargingImageView.setImageResource(R.drawable.ic_power_grey_80px);
+        }
     }
 
     private class ChargingBroadcastReceiver extends BroadcastReceiver {
-
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             boolean isCharging = (action.equals(Intent.ACTION_POWER_CONNECTED));
 
             showCharging(isCharging);
-        }
-    }
-
-
-    private void showCharging(boolean isCharging){
-        if (isCharging) {
-            mChargingImageView.setImageResource(R.drawable.ic_power_pink_80px);
-
-        } else {
-            mChargingImageView.setImageResource(R.drawable.ic_power_grey_80px);
         }
     }
 }
